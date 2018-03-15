@@ -44,16 +44,22 @@ def make_chains(text_string):
 def make_text(chains):
     """Take dictionary of Markov chains; return random text."""
 
-    key = choice(chains.keys())
+    key = choice([key for key in chains.keys() if key[0][0].isupper()])
     words = [key[0], key[1]]
+    char_length = len(words[0]) + len(words[1]) + 2
+
     while key in chains:
-        # Keep looping until we have a key that isn't in the chains
-        # (which would mean it was the end of our original text).
-        #
-        # Note that for long texts (like a full book), this might mean
-        # it would run for a very long time.
 
         word = choice(chains[key])
+        char_length = char_length + len(word) + 1
+        if char_length > 140:
+            key = tuple(words[-3:-1])
+            try:
+                words[-1] = choice([val for val in chains[key] if val[-1] in ".?!"])
+            except IndexError:
+                words[-1] = words[-1][:-3] + "..."
+            break
+
         words.append(word)
         key = (key[1], word)
 
@@ -67,7 +73,19 @@ def tweet(chains):
     # Note: you must run `source secrets.sh` before running this file
     # to make sure these environmental variables are set.
 
-    pass
+    api = twitter.Api(
+        consumer_key=os.environ['TWITTER_CONSUMER_KEY'],
+        consumer_secret=os.environ['TWITTER_CONSUMER_SECRET'],
+        access_token_key=os.environ['TWITTER_ACCESS_TOKEN_KEY'],
+        access_token_secret=os.environ['TWITTER_ACCESS_TOKEN_SECRET'])
+
+    user_entry = ''
+    while user_entry.lower() != 'q':
+        status = api.PostUpdate(make_text(chains))
+        print status.text
+        print "Num of characters: {}".format(len(status.text))
+        print ""
+        user_entry = raw_input("Enter to tweet again [q to quit] > ")
 
 
 # Get the filenames from the user through a command line prompt, ex:
@@ -81,4 +99,4 @@ text = open_and_read_file(filenames)
 chains = make_chains(text)
 
 # Your task is to write a new function tweet, that will take chains as input
-# tweet(chains)
+tweet(chains)
